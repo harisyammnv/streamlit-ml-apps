@@ -39,7 +39,7 @@ fig, ax = plt.subplots(3, 3, figsize=(18, 12))
 i, j = (0, 0)
 for col in data.columns:
     if col != 'ocean_proximity':
-        sns.distplot(data[col], color='orange',
+        sns.histplot(data[col], color='orange',
                      hist_kws={'alpha':1,"linewidth": 4},
                      kde_kws={"color": "black", "lw": 2}, ax=ax[i][j])
         j = j+1
