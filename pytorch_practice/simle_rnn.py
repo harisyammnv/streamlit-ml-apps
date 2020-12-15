@@ -8,28 +8,28 @@ import torchvision.transforms as transforms
 import torchvision.datasets as datasets
 
 
-class CNN(nn.Module):
+class RNN(nn.Module):
 
-    def __init__(self, in_channels=1, num_classes=10):
-        super(CNN, self).__init__()
-
-        self.conv1 = nn.Conv2d(in_channels=1, out_channels=64, kernel_size=(3,3), stride=(1,1), padding=(1,1))
-        self.pool = nn.MaxPool2d(kernel_size=(2,2), stride=(2,2))
-        self.conv2 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
-        self.fc1 = nn.Linear(64*7*7, num_classes)
+    def __init__(self, input_size, hidden_size, num_layers, num_classes):
+        super(RNN, self).__init__()
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.rnn = nn.RNN(input_size, hidden_size, num_layers, batch_first=True)
+        self.fc = nn.Linear(hidden_size * NetworkParameters.sequence_length, num_classes)
 
     def forward(self, x):
-        x = F.relu(self.conv1(x))
-        x = self.pool(x)
-        x = F.relu(self.conv2(x))
-        x = self.pool(x)
-        x = x.reshape(x.shape[0], -1)
-        x = self.fc1(x)
-        return x
+        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(device)
+        out, _ = self.rnn(x, h0)
+        out = out.reshape(out.shape[0], -1)
+        out = self.fc(out)
+        return out
 
 
 class NetworkParameters:
-    input_size = 784
+    input_size = 28
+    sequence_length = 28
+    num_layers = 2
+    hidden_size = 256
     num_class = 10
     learning_rate = 0.001
     batch_size = 64
@@ -50,7 +50,7 @@ def check_accuracy(loader, model):
 
         for x, y in loader:
 
-            x = x.to(device=device)
+            x = x.to(device=device).squeeze(1)
             y = y.to(device=device)
             #x = x.reshape(x.shape[0], -1)
             scores = model(x)
@@ -74,7 +74,8 @@ test_dataset = datasets.FashionMNIST(root='./dataset', train=False, transform=tr
                                      download=True)
 test_loader = DataLoader(dataset=test_dataset, batch_size=NetworkParameters.batch_size, shuffle=True)
 
-model = CNN().to(device)
+model = RNN(input_size=NetworkParameters.input_size, hidden_size=NetworkParameters.hidden_size,
+            num_classes=NetworkParameters.num_class, num_layers=NetworkParameters.num_layers).to(device)
 
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=NetworkParameters.learning_rate)
@@ -83,7 +84,7 @@ for epoch in tqdm(range(NetworkParameters.epochs)):
 
     for batch_idx, (data, targets) in enumerate(train_loader):
 
-        data = data.to(device=device)
+        data = data.to(device=device).squeeze(1)
         targets = targets.to(device=device)
 
         #data = data.reshape(NetworkParameters.batch_size, -1)
